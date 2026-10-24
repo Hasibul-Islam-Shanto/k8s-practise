@@ -1,0 +1,14 @@
+apiVersion: 1
+
+providers:
+  # Folder and provider name come from GRAFANA_FOLDER and GRAFANA_DASHBOARD_PROVIDER
+  # in .env.monitoring. Grafana expands these when the container starts.
+  # JSON templates in grafana/dashboards/ are rendered into this path before Grafana starts.
+  - name: ${GRAFANA_DASHBOARD_PROVIDER}
+    orgId: 1
+    folder: ${GRAFANA_FOLDER}
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    options:
+      path: /tmp/dashboards
