@@ -6,10 +6,6 @@ on:
       - main
   workflow_dispatch:
 
-permissions:
-  id-token: write # Required for requesting the OIDC JWT
-  contents: read
-
 jobs:
   test-aws-oidc:
     name: Verify AWS OIDC Handshake
