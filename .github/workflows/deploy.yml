@@ -1,115 +1,29 @@
-name: Build & Deploy to EC2 via OIDC
+name: Test AWS OIDC Connection
 
 on:
   push:
     branches:
       - main
+  workflow_dispatch:
 
-# Required permissions for AWS OIDC authentication
 permissions:
-  id-token: write # Mandatory for requesting the JWT
-  contents: read # Required for actions/checkout
+  id-token: write # Required for requesting the OIDC JWT
+  contents: read
 
 jobs:
-  build-and-push:
-    name: Build & Push Docker Images
+  test-aws-oidc:
+    name: Verify AWS OIDC Handshake
     runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Set up QEMU (for multi-arch build)
-        uses: docker/setup-qemu-action@v3
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Build & Push Backend
-        uses: docker/build-push-action@v5
-        with:
-          context: ./backend
-          platforms: linux/amd64
-          push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/techblog-backend:v1.0.0
-
-      - name: Build & Push Frontend
-        uses: docker/build-push-action@v5
-        with:
-          context: ./frontend
-          platforms: linux/amd64
-          build-args: |
-            VITE_API_URL=/api/v1
-          push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/techblog-frontend:v1.0.0
-
-  deploy-to-ec2:
-    name: Deploy to EC2 via OIDC & SSM
-    needs: build-and-push
-    runs-on: ubuntu-latest
-    permissions:
-      id-token: write # Explicitly ensure OIDC token permission on this job
-      contents: read
     steps:
       - name: Configure AWS Credentials using OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          role-session-name: GitHubActions-EC2-Deploy
+          role-session-name: GitHubActions-OIDC-Test
           aws-region: ${{ secrets.AWS_REGION }}
           audience: sts.amazonaws.com
 
-      - name: Trigger Deployment via AWS SSM
+      - name: Verify Assumed Identity
         run: |
-          echo "Sending deployment command to EC2 instance: ${{ secrets.EC2_INSTANCE_ID }}"
-
-          # Run deployment via SSM with automated directory and kubeconfig checks
-          COMMAND_ID=$(aws ssm send-command \
-            --instance-ids "${{ secrets.EC2_INSTANCE_ID }}" \
-            --document-name "AWS-RunShellScript" \
-            --comment "Deploy TechBlog update via GitHub Actions" \
-            --parameters commands='[
-              "set -e",
-              "mkdir -p /home/ubuntu/.kube",
-              "if [ ! -f /home/ubuntu/.kube/config ] && [ -f /etc/rancher/k3s/k3s.yaml ]; then cp /etc/rancher/k3s/k3s.yaml /home/ubuntu/.kube/config && chown -R ubuntu:ubuntu /home/ubuntu/.kube && chmod 600 /home/ubuntu/.kube/config; fi",
-              "sudo -u ubuntu -i bash -c \"export KUBECONFIG=/home/ubuntu/.kube/config && if [ ! -d /home/ubuntu/techblog-python-vue ]; then git clone https://github.com/Hasibul-Islam-Shanto/k8s-practise.git /home/ubuntu/techblog-python-vue; fi && cd /home/ubuntu/techblog-python-vue && git pull origin main && kubectl apply -k k8s/ && kubectl rollout restart deployment backend frontend -n techblog && kubectl rollout status deployment/backend -n techblog --timeout=120s && kubectl rollout status deployment/frontend -n techblog --timeout=120s\""
-            ]' \
-            --query "Command.CommandId" \
-            --output text)
-
-          echo "Command ID: $COMMAND_ID"
-          echo "Waiting for deployment to complete..."
-
-          # Poll until execution finishes
-          aws ssm wait command-executed \
-            --command-id "$COMMAND_ID" \
-            --instance-id "${{ secrets.EC2_INSTANCE_ID }}"
-
-          # Output execution status and logs
-          STATUS=$(aws ssm get-command-invocation \
-            --command-id "$COMMAND_ID" \
-            --instance-id "${{ secrets.EC2_INSTANCE_ID }}" \
-            --query "Status" \
-            --output text)
-
-          echo "Execution finished with status: $STATUS"
-
-          aws ssm get-command-invocation \
-            --command-id "$COMMAND_ID" \
-            --instance-id "${{ secrets.EC2_INSTANCE_ID }}" \
-            --query "StandardOutputContent" \
-            --output text
-
-          if [ "$STATUS" != "Success" ]; then
-            aws ssm get-command-invocation \
-              --command-id "$COMMAND_ID" \
-              --instance-id "${{ secrets.EC2_INSTANCE_ID }}" \
-              --query "StandardErrorContent" \
-              --output text
-            exit 1
-          fi
+          echo "🎉 Successfully authenticated with AWS OIDC!"
+          aws sts get-caller-identity
