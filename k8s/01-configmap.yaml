@@ -9,5 +9,5 @@ metadata:
 data:
   MYSQL_DATABASE: "tech_blog"
   MYSQL_USER: "techblog"
-  FRONTEND_URL: "http://localhost"
+  FRONTEND_URL: "https://98.89.39.177.sslip.io"
   LOG_LEVEL: "INFO"

@@ -6,16 +6,22 @@ metadata:
   labels:
     app.kubernetes.io/name: techblog
   annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
     nginx.ingress.kubernetes.io/proxy-body-size: "10m"
     nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
     nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
 spec:
   ingressClassName: nginx
+  tls:
+    - hosts:
+        - 98.89.39.177.sslip.io
+      secretName: techblog-tls-secret
   rules:
-    # No "host" specified: catches ALL traffic (localhost, 127.0.0.1, or custom domains)
-    - http:
+    - host: 98.89.39.177.sslip.io
+      http:
         paths:
-          # Direct backend API access (docs, metrics, API endpoints)
+          # Direct backend API access
           - path: /api/v1
             pathType: Prefix
             backend:
@@ -23,7 +29,24 @@ spec:
                 name: backend
                 port:
                   number: 8000
-          # Frontend SPA & static files (catches all other routes)
+          # Frontend SPA & static files
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend
+                port:
+                  number: 80
+    # Fallback rule for direct IP access
+    - http:
+        paths:
+          - path: /api/v1
+            pathType: Prefix
+            backend:
+              service:
+                name: backend
+                port:
+                  number: 8000
           - path: /
             pathType: Prefix
             backend:
