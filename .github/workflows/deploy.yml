@@ -81,13 +81,14 @@ jobs:
               "set -e",
               "mkdir -p /home/ubuntu/.kube",
               "if [ -f /etc/rancher/k3s/k3s.yaml ]; then cp -f /etc/rancher/k3s/k3s.yaml /home/ubuntu/.kube/config && chown -R ubuntu:ubuntu /home/ubuntu/.kube && chmod 600 /home/ubuntu/.kube/config; fi",
+              "if ! command -v helm &> /dev/null; then curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash; fi",
               "if [ ! -d /home/ubuntu/techblog-python-vue ]; then sudo -u ubuntu git clone https://github.com/Hasibul-Islam-Shanto/k8s-practise.git /home/ubuntu/techblog-python-vue; fi",
               "cd /home/ubuntu/techblog-python-vue",
               "sudo -u ubuntu git pull origin main",
-              "sudo -u ubuntu KUBECONFIG=/home/ubuntu/.kube/config kubectl apply -k k8s/",
+              "sudo -u ubuntu KUBECONFIG=/home/ubuntu/.kube/config helm upgrade --install techblog ./charts/techblog --namespace techblog --create-namespace --set backend.image.repository=${{ secrets.DOCKERHUB_USERNAME }}/techblog-backend --set frontend.image.repository=${{ secrets.DOCKERHUB_USERNAME }}/techblog-frontend",
               "sudo -u ubuntu KUBECONFIG=/home/ubuntu/.kube/config kubectl rollout restart deployment backend frontend -n techblog",
-              "sudo -u ubuntu KUBECONFIG=/home/ubuntu/.kube/config kubectl rollout status deployment/backend -n techblog --timeout=120s",
-              "sudo -u ubuntu KUBECONFIG=/home/ubuntu/.kube/config kubectl rollout status deployment/frontend -n techblog --timeout=120s"
+              "sudo -u ubuntu KUBECONFIG=/home/ubuntu/.kube/config kubectl rollout status deployment/backend -n techblog --timeout=180s",
+              "sudo -u ubuntu KUBECONFIG=/home/ubuntu/.kube/config kubectl rollout status deployment/frontend -n techblog --timeout=180s"
             ]' \
             --query "Command.CommandId" \
             --output text)

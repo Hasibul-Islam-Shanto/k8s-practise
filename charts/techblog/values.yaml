@@ -1,0 +1,77 @@
+# Default values for techblog.
+
+database:
+  name: "tech_blog"
+  user: "techblog"
+  rootPassword: "shanto78"
+  password: "shanto78"
+  image:
+    repository: mysql
+    tag: "8.0"
+    pullPolicy: IfNotPresent
+  storage:
+    accessMode: ReadWriteOnce
+    size: 5Gi
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+
+backend:
+  replicaCount: 2
+  image:
+    repository: shanto78/techblog-backend
+    tag: "v1.0.0"
+    pullPolicy: Always
+  jwtSecret: "USZVd-bU3-TBDjRy92Exn9jOPNiiuxU00FJQ_rawAC6bFB40ccKZaP4vJUiHCa8i"
+  logLevel: "INFO"
+  frontendUrl: "https://hitechblog.me"
+  service:
+    type: ClusterIP
+    port: 8000
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+frontend:
+  replicaCount: 2
+  image:
+    repository: shanto78/techblog-frontend
+    tag: "v1.0.0"
+    pullPolicy: Always
+  service:
+    type: NodePort
+    port: 80
+    nodePort: 30080
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 250m
+      memory: 256Mi
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+  hosts:
+    - hitechblog.me
+    - www.hitechblog.me
+  tls:
+    - secretName: techblog-tls-secret
+      hosts:
+        - hitechblog.me
+        - www.hitechblog.me
