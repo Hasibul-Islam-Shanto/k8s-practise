@@ -4,11 +4,13 @@ on:
   push:
     branches:
       - main
+    paths-ignore:
+      - "charts/techblog/values.yaml"
   workflow_dispatch:
 
 permissions:
   id-token: write # Required for AWS OIDC authentication
-  contents: read  # Required for actions/checkout
+  contents: write # Required to push updated image tag to charts/techblog/values.yaml
 
 jobs:
   build-and-push:
@@ -17,6 +19,12 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set Image Tag from Commit SHA
+        id: vars
+        run: echo "image_tag=sha-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -30,27 +38,45 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build & Push Backend
+      - name: Build & Push Backend (amd64 + arm64)
         uses: docker/build-push-action@v5
         with:
           context: ./backend
-          platforms: linux/amd64
+          platforms: linux/amd64,linux/arm64
           push: true
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,mode=max,scope=backend
           tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/techblog-backend:${{ steps.vars.outputs.image_tag }}
             ${{ secrets.DOCKERHUB_USERNAME }}/techblog-backend:v1.0.0
             ${{ secrets.DOCKERHUB_USERNAME }}/techblog-backend:latest
 
-      - name: Build & Push Frontend
+      - name: Build & Push Frontend (amd64 + arm64)
         uses: docker/build-push-action@v5
         with:
           context: ./frontend
-          platforms: linux/amd64
+          platforms: linux/amd64,linux/arm64
           build-args: |
             VITE_API_URL=/api/v1
           push: true
+          cache-from: type=gha,scope=frontend
+          cache-to: type=gha,mode=max,scope=frontend
           tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/techblog-frontend:${{ steps.vars.outputs.image_tag }}
             ${{ secrets.DOCKERHUB_USERNAME }}/techblog-frontend:v1.0.0
             ${{ secrets.DOCKERHUB_USERNAME }}/techblog-frontend:latest
+
+      - name: Update Helm values.yaml for ArgoCD GitOps
+        run: |
+          yq -i '.backend.image.tag = "${{ steps.vars.outputs.image_tag }}"' charts/techblog/values.yaml
+          yq -i '.frontend.image.tag = "${{ steps.vars.outputs.image_tag }}"' charts/techblog/values.yaml
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git pull --rebase origin main
+          git add charts/techblog/values.yaml
+          git diff --staged --quiet || git commit -m "chore(helm): update image tags to ${{ steps.vars.outputs.image_tag }} [skip ci]"
+          git push origin main
 
   deploy-to-ec2:
     name: Deploy to EC2 via OIDC & SSM

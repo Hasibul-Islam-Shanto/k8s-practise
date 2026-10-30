@@ -1,0 +1,32 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: techblog
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/Hasibul-Islam-Shanto/k8s-practise.git
+    targetRevision: main
+    path: charts/techblog
+    helm:
+      valueFiles:
+        - values.yaml
+      # Override values for local Ingress testing (http://localhost):
+      parameters:
+        - name: backend.frontendUrl
+          value: "http://localhost"
+        - name: ingress.enabled
+          value: "true"
+        - name: ingress.annotations.nginx\.ingress\.kubernetes\.io/ssl-redirect
+          value: "false"
+          forceString: true
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: techblog
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
