@@ -68,12 +68,13 @@ jobs:
 
       - name: Update Helm values.yaml for ArgoCD GitOps
         run: |
-          yq -i '.backend.image.tag = "${{ steps.vars.outputs.image_tag }}"' charts/techblog/values.yaml
-          yq -i '.frontend.image.tag = "${{ steps.vars.outputs.image_tag }}"' charts/techblog/values.yaml
-
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git pull --rebase origin main
+
+          yq -i '.backend.image.tag = "${{ steps.vars.outputs.image_tag }}"' charts/techblog/values.yaml
+          yq -i '.frontend.image.tag = "${{ steps.vars.outputs.image_tag }}"' charts/techblog/values.yaml
+
           git add charts/techblog/values.yaml
           git diff --staged --quiet || git commit -m "chore(helm): update image tags to ${{ steps.vars.outputs.image_tag }} [skip ci]"
           git push origin main
