@@ -19,12 +19,11 @@ database:
     limits:
       cpu: 1000m
       memory: 1Gi
-
 backend:
   replicaCount: 2
   image:
     repository: shanto78/techblog-backend
-    tag: "v1.0.0"
+    tag: "sha-5f69cef"
     pullPolicy: Always
   jwtSecret: "USZVd-bU3-TBDjRy92Exn9jOPNiiuxU00FJQ_rawAC6bFB40ccKZaP4vJUiHCa8i"
   logLevel: "INFO"
@@ -39,12 +38,11 @@ backend:
     limits:
       cpu: 500m
       memory: 512Mi
-
 frontend:
   replicaCount: 2
   image:
     repository: shanto78/techblog-frontend
-    tag: "v1.0.0"
+    tag: "sha-5f69cef"
     pullPolicy: Always
   service:
     type: NodePort
@@ -57,7 +55,6 @@ frontend:
     limits:
       cpu: 250m
       memory: 256Mi
-
 ingress:
   enabled: true
   className: nginx
